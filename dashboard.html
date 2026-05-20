@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydroFiliz - Bitki İzleme</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f4f0; color: #333; }
+
+        /* ── Giriş Ekranı ───────────────────────────────────────────────── */
+        #giris-ekrani {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #388e3c 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        #giris-ekrani.gizli { display: none; }
+        .giris-kutu {
+            background: white;
+            border-radius: 16px;
+            padding: 36px 32px 28px;
+            width: 340px;
+            max-width: 95vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            text-align: center;
+        }
+        .giris-logo { font-size: 48px; margin-bottom: 6px; }
+        .giris-baslik { font-size: 22px; font-weight: bold; color: #2e7d32; margin-bottom: 4px; }
+        .giris-alt { font-size: 12px; color: #999; margin-bottom: 24px; }
+        .giris-alan {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .giris-alan:focus { border-color: #2e7d32; }
+        .giris-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 4px;
+            transition: background 0.2s;
+        }
+        .giris-btn:hover { background: #1b5e20; }
+        .giris-hata {
+            color: #c62828;
+            font-size: 12px;
+            margin-top: 10px;
+            min-height: 18px;
+        }
+        .giris-versiyon { font-size: 11px; color: #bbb; margin-top: 16px; }
+
+        /* ── Ana Uygulama ─────────────────────────────────────────────── */
+        #uygulama { display: none; }
+        #uygulama.gorunen { display: block; }
+
+        header {
+            background: #2e7d32;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        header .baslik { display: flex; align-items: center; gap: 10px; }
+        header h1 { font-size: 20px; }
+        header span { font-size: 13px; opacity: 0.8; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .btn-yesil { background: white; color: #2e7d32; }
+        .btn-yesil:hover { background: #e8f5e9; }
+        .btn-kirmizi { background: #c62828; color: white; }
+        .btn-kirmizi:hover { background: #b71c1c; }
+        .btn-turuncu { background: #f57c00; color: white; }
+        .btn-turuncu:hover { background: #e65100; }
+        .btn-cikis {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .btn-cikis:hover { background: rgba(255,255,255,0.25); }
+
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #444;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ── Bitki Listesi ─────────────────────────────────────────────── */
+        .bitki-listesi {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        .bitki-kart {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 14px 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            min-width: 180px;
+            position: relative;
+        }
+        .bitki-kart:hover { border-color: #2e7d32; }
+        .bitki-kart.secili { border-color: #2e7d32; background: #f1f8f1; }
+        .bitki-kart .emoji { font-size: 32px; }
+        .bitki-kart .bilgi .ad { font-size: 14px; font-weight: bold; }
+        .bitki-kart .bilgi .tur { font-size: 11px; color: #888; }
+        .bitki-kart .bilgi .gun { font-size: 11px; color: #2e7d32; font-weight: bold; margin-top: 2px; }
+
+        /* ── Yeni Bitki Modal ──────────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.acik { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 360px;
+            max-width: 95%;
+        }
+        .modal h2 { font-size: 16px; margin-bottom: 16px; color: #2e7d32; }
+        .form-grup { margin-bottom: 14px; }
+        .form-grup label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .form-grup input, .form-grup select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .modal-butonlar { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+        .btn-iptal { background: #eee; color: #555; }
+
+        /* ── Bitki Detay Paneli ────────────────────────────────────────── */
+        .bitki-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .bitki-panel-ust {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .bitki-panel .panel-bilgi { flex: 1; }
+        .bitki-panel .panel-bilgi h2 { font-size: 18px; color: #2e7d32; margin-bottom: 4px; }
+        .bitki-panel .panel-bilgi .meta { font-size: 12px; color: #888; margin-bottom: 10px; }
+        .bitki-panel .panel-bilgi .progress-bar-wrap {
+            background: #eee;
+            border-radius: 20px;
+            height: 10px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .bitki-panel .panel-bilgi .progress-bar {
+            height: 100%;
+            background: #2e7d32;
+            border-radius: 20px;
+            transition: width 0.4s;
+        }
+        .bitki-panel .panel-bilgi .progress-label { font-size: 11px; color: #888; margin-top: 3px; }
+
+        /* ── Koşul Kartları ────────────────────────────────────────────── */
+        .kosul-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .kosul-satir { border-radius: 6px; padding: 8px 10px; font-size: 12px; }
+        .kosul-label { color: #666; margin-bottom: 3px; }
+        .kosul-ideal { font-weight: bold; font-size: 13px; }
+        .kosul-durum { font-size: 11px; margin-top: 2px; }
+        .kosul-ok { background: #e8f5e9; }
+        .kosul-ok .kosul-ideal { color: #2e7d32; }
+        .kosul-warn { background: #fff3e0; }
+        .kosul-warn .kosul-ideal { color: #f57c00; }
+        .kosul-danger { background: #fce4ec; }
+        .kosul-danger .kosul-ideal { color: #c62828; }
+
+        /* ── Sensör Kartları ───────────────────────────────────────────── */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .sensor-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #2e7d32;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .sensor-card .label { font-size: 12px; color: #666; margin-bottom: 6px; }
+        .sensor-card .value { font-size: 26px; font-weight: bold; color: #2e7d32; }
+        .sensor-card .unit { font-size: 12px; color: #999; }
+
+        /* ── Grafikler ─────────────────────────────────────────────────── */
+        .filter-row {
+            display: flex; gap: 8px; margin-bottom: 16px;
+            flex-wrap: wrap; align-items: center;
+        }
+        .filter-row span { font-size: 13px; color: #666; }
+        .filter-btn {
+            padding: 5px 12px;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .filter-btn.active { background: #2e7d32; color: white; border-color: #2e7d32; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .chart-card h3 { font-size: 13px; color: #555; margin-bottom: 10px; }
+
+        /* ── Tablo ─────────────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            border-collapse: collapse;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        th { background: #2e7d32; color: white; padding: 10px 12px; text-align: left; font-size: 13px; }
+        td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f9f9f9; }
+
+        /* ── Bitki Fotoğraf ────────────────────────────────────────────── */
+        .bitki-fotograf {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            min-width: 130px;
+        }
+        .bitki-foto-cerceve {
+            width: 120px;
+            height: 120px;
+            border-radius: 12px;
+            background: #f1f8f1;
+            border: 2px solid #c8e6c9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .bitki-foto-emoji { font-size: 64px; line-height: 1; }
+        .bitki-foto-img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .btn-hasat-buyuk {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn-hasat-buyuk:hover { background: #1b5e20; }
+        .hasat-edildi-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* ── Hasatlarım ────────────────────────────────────────────────── */
+        .hasat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        /* ── Boş Durum ─────────────────────────────────────────────────── */
+        .bos-durum {
+            text-align: center;
+            padding: 40px;
+            color: #aaa;
+            font-size: 14px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .bos-durum .bos-emoji { font-size: 48px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<!-- ══ GİRİŞ EKRANI ══════════════════════════════════════════════════════════ -->
+<div id="giris-ekrani">
+    <div class="giris-kutu">
+        <div class="giris-logo">🌱</div>
+        <div class="giris-baslik">HydroFiliz</div>
+        <div class="giris-alt">Topraksız Tarım İzleme Sistemi</div>
+        <input class="giris-alan" type="text"     id="giris-kullanici" placeholder="Kullanıcı adı"
+               onkeydown="if(event.key==='Enter') girisYap()">
+        <input class="giris-alan" type="password" id="giris-sifre"     placeholder="Şifre"
+               onkeydown="if(event.key==='Enter') girisYap()">
+        <button class="giris-btn" onclick="girisYap()">Giriş Yap</button>
+        <div class="giris-hata" id="giris-hata"></div>
+        <div class="giris-versiyon">v1.0 · ESP32 + Flask</div>
+    </div>
+</div>
+
+<!-- ══ ANA UYGULAMA ══════════════════════════════════════════════════════════ -->
+<div id="uygulama">
+
+<header>
+    <div class="baslik">
+        <div>🌱</div>
+        <div>
+            <h1>HydroFiliz - Bitki İzleme Sistemi</h1>
+            <span>Topraksız Tarım Sensör Paneli</span>
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <span id="hosgeldin" style="font-size:12px;opacity:0.75;"></span>
+        <button class="btn" style="background:rgba(255,255,255,0.2);color:white;"
+                onclick="sayfaDegistir('hasatlarim')">🌾 Hasatlarım</button>
+        <button class="btn btn-yesil"
+                onclick="sayfaDegistir('anasayfa'); modalAc()">+ Yeni Bitki Ekle</button>
+        <button class="btn btn-cikis" onclick="cikisYap()">Çıkış</button>
+    </div>
+</header>
+
+<!-- Hasat Modal -->
+<div class="modal-overlay" id="hasat-modal">
+    <div class="modal">
+        <h2>🌾 Hasat Et</h2>
+        <p style="font-size:13px;color:#666;margin-bottom:16px;">
+            Hasadına ait bir fotoğraf yükleyebilirsin (isteğe bağlı).</p>
+        <div class="form-grup">
+            <label>Hasat Fotoğrafı</label>
+            <div id="foto-onizleme"
+                 style="width:100%;height:160px;background:#f5f5f5;border:2px dashed #ccc;
+                        border-radius:8px;display:flex;align-items:center;justify-content:center;
+                        margin-bottom:8px;overflow:hidden;cursor:pointer;"
+                 onclick="document.getElementById('foto-input').click()">
+                <span style="color:#aaa;font-size:13px;">📷 Fotoğraf seç veya buraya tıkla</span>
+            </div>
+            <input type="file" id="foto-input" accept="image/*"
+                   style="display:none" onchange="fotografSec(this)">
+        </div>
+        <div class="form-grup">
+            <label>Not (isteğe bağlı)</label>
+            <input type="text" id="hasat-not" placeholder="örn: Çok güzel çıktı!">
+        </div>
+        <div class="modal-butonlar">
+            <button class="btn btn-iptal" onclick="hasatModalKapat()">İptal</button>
+            <button class="btn btn-yesil" onclick="hasatOnayla()">✅ Hasat Et</button>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Bitki Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h2>🌱 Yeni Bitki Ekle</h2>
+        <div class="form-grup">
+            <label>Bitki Türü</label>
+            <select id="yeni-tur" onchange="turSecildi()">
+                <option value="marul">🥬 Marul</option>
+                <option value="feslegen">🌿 Fesleğen</option>
+                <option value="domates">🍅 Domates</option>
+                <option value="cilek">🍓 Çilek</option>
+            </select>
+        </div>
+        <div class="form-grup">
+            <label>Bitki Adı (isteğe bağlı)</label>
+            <input type="text" id="yeni-ad" placeholder="örn: Marul-1, Balkon Marulu...">
+        </div>
+        <div class="form-grup">
+            <label>Ekim Tarihi</label>
+            <input type="date" id="yeni-tarih">
+        </div>
+        <div class="modal-butonlar">
+            <button class="btn btn-iptal" onclick="modalKapat()">İptal</button>
+            <button class="btn btn-yesil" onclick="bitkiEkle()">Ekle</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ANA SAYFA -->
+    <div id="sayfa-anasayfa">
+        <div class="section-title">
+            <span>Bitkilerim</span>
+            <span id="bitki-sayac" style="font-size:12px;color:#888;font-weight:normal;"></span>
+        </div>
+        <div class="bitki-listesi" id="bitki-listesi"></div>
+        <div id="detay-alani"></div>
+    </div>
+
+    <!-- HASATLARIM SAYFASI -->
+    <div id="sayfa-hasatlarim" style="display:none;">
+        <div class="section-title">
+            <span>🌾 Hasatlarım</span>
+            <button class="btn btn-yesil" style="font-size:12px;padding:4px 12px;"
+                    onclick="sayfaDegistir('anasayfa')">← Geri Dön</button>
+        </div>
+        <div id="hasat-listesi"></div>
+    </div>
+
+</div>
+</div><!-- #uygulama -->
+
+<script>
+// ══ GİRİŞ SİSTEMİ ════════════════════════════════════════════════════════════
+// Kullanıcı adı ve şifreyi buradan değiştir:
+const KULLANICI = "admin";
+const SIFRE     = "hydrofiliz";
+const OTURUM_KEY = "hf_oturum";
+
+function girisYap() {
+    const k = document.getElementById('giris-kullanici').value.trim();
+    const s = document.getElementById('giris-sifre').value;
+    const hata = document.getElementById('giris-hata');
+
+    if (k === KULLANICI && s === SIFRE) {
+        sessionStorage.setItem(OTURUM_KEY, "1");
+        document.getElementById('giris-ekrani').classList.add('gizli');
+        document.getElementById('uygulama').classList.add('gorunen');
+        document.getElementById('hosgeldin').textContent = `👤 ${k}`;
+        hata.textContent = '';
+        uygulamaBaslat();
+    } else {
+        hata.textContent = '❌ Kullanıcı adı veya şifre hatalı.';
+        document.getElementById('giris-sifre').value = '';
+        document.getElementById('giris-sifre').focus();
+    }
+}
+
+function cikisYap() {
+    sessionStorage.removeItem(OTURUM_KEY);
+    document.getElementById('uygulama').classList.remove('gorunen');
+    document.getElementById('giris-ekrani').classList.remove('gizli');
+    document.getElementById('giris-kullanici').value = '';
+    document.getElementById('giris-sifre').value = '';
+    document.getElementById('giris-hata').textContent = '';
+}
+
+// Sayfa yenilenince oturumu koru (sessionStorage tab ömrü boyunca yaşar)
+if (sessionStorage.getItem(OTURUM_KEY) === "1") {
+    document.getElementById('giris-ekrani').classList.add('gizli');
+    document.getElementById('uygulama').classList.add('gorunen');
+    document.getElementById('hosgeldin').textContent = `👤 ${KULLANICI}`;
+}
+
+// ══ TÜR VERİTABANI (Arduino getRef() ile eşleştirildi) ══════════════════════
+// Değerleri değiştirirsen Arduino'daki getRef()'i de güncelle!
+const bitkiTurleri = {
+    'marul': {
+        emoji: '🥬',
+        foto: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Lactuca_sativa_var_capitata.jpg/320px-Lactuca_sativa_var_capitata.jpg',
+        hasat: 45,
+        aciklama: 'Hızlı büyür, az bakım ister.',
+        kosullar: {
+            sicaklik: { label: 'Ortam Sıcaklığı', ideal: '18–24 °C',     min: 18,   max: 24   },
+            nem:      { label: 'Nem',              ideal: '50–70 %',      min: 50,   max: 70   },
+            su_sicak: { label: 'Su Sıcaklığı',    ideal: '18–22 °C',     min: 18,   max: 22   },
+            tds:      { label: 'TDS (Besin)',      ideal: '700–1400 ppm', min: 700,  max: 1400 },
+            isik:     { label: 'Işık',             ideal: '5000–20000 lux', min: 5000, max: 20000 },
+            co2:      { label: 'CO2',              ideal: '800–1200 ppm', min: 800,  max: 1200 }
+        }
+    },
+    'feslegen': {
+        emoji: '🌿',
+        foto: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Basil-Basilico-Ocimum_basilicum-albahaca.jpg/320px-Basil-Basilico-Ocimum_basilicum-albahaca.jpg',
+        hasat: 21,
+        aciklama: 'Işığa duyarlı, sıcak sever.',
+        kosullar: {
+            sicaklik: { label: 'Ortam Sıcaklığı', ideal: '20–26 °C',      min: 20,   max: 26   },
+            nem:      { label: 'Nem',              ideal: '40–65 %',       min: 40,   max: 65   },
+            su_sicak: { label: 'Su Sıcaklığı',    ideal: '20–24 °C',      min: 20,   max: 24   },
+            tds:      { label: 'TDS (Besin)',      ideal: '700–1400 ppm',  min: 700,  max: 1400 },
+            isik:     { label: 'Işık',             ideal: '5000–30000 lux', min: 5000, max: 30000 },
+            co2:      { label: 'CO2',              ideal: '800–1200 ppm',  min: 800,  max: 1200 }
+        }
+    },
+    'domates': {
+        emoji: '🍅',
+        foto: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tomato_je.jpg/320px-Tomato_je.jpg',
+        hasat: 75,
+        aciklama: 'Yüksek besin ve ışık ister.',
+        kosullar: {
+            sicaklik: { label: 'Ortam Sıcaklığı', ideal: '20–28 °C',       min: 20,    max: 28    },
+            nem:      { label: 'Nem',              ideal: '50–70 %',        min: 50,    max: 70    },
+            su_sicak: { label: 'Su Sıcaklığı',    ideal: '20–26 °C',       min: 20,    max: 26    },
+            tds:      { label: 'TDS (Besin)',      ideal: '1400–3500 ppm',  min: 1400,  max: 3500  },
+            isik:     { label: 'Işık',             ideal: '10000–60000 lux', min: 10000, max: 60000 },
+            co2:      { label: 'CO2',              ideal: '800–1500 ppm',   min: 800,   max: 1500  }
+        }
+    },
+    'cilek': {
+        emoji: '🍓',
+        foto: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/320px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg',
+        hasat: 90,
+        aciklama: 'Serin ve aydınlık ortam sever.',
+        kosullar: {
+            sicaklik: { label: 'Ortam Sıcaklığı', ideal: '15–22 °C',      min: 15,   max: 22   },
+            nem:      { label: 'Nem',              ideal: '60–80 %',       min: 60,   max: 80   },
+            su_sicak: { label: 'Su Sıcaklığı',    ideal: '15–20 °C',      min: 15,   max: 20   },
+            tds:      { label: 'TDS (Besin)',      ideal: '700–1400 ppm',  min: 700,  max: 1400 },
+            isik:     { label: 'Işık',             ideal: '5000–20000 lux', min: 5000, max: 20000 },
+            co2:      { label: 'CO2',              ideal: '800–1200 ppm',  min: 800,  max: 1200 }
+        }
+    }
+};
+
+// API'den gelen "Marul"/"Feslegen"/"Domates"/"Cilek" → tur objesi
+function turBul(b) {
+    const anahtar = (b.tur || b.adHam || '').toLowerCase()
+        .replace(/ğ/g,'g').replace(/ş/g,'s').replace(/ı/g,'i')
+        .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c').trim();
+    return bitkiTurleri[anahtar] || bitkiTurleri['marul'];
+}
+
+// ══ API ═══════════════════════════════════════════════════════════════════════
+const API = "";  // Boş = aynı sunucu. Ngrok için: "https://xxxx.ngrok-free.app"
+
+let bitkiler     = [];
+let seciliBitki  = null;
+let chartlar     = {};
+let aktifSaat    = 24;
+
+async function apiBitkilerGetir() {
+    try {
+        const r = await fetch(API + "/bitkiler?hepsi=1");
+        const data = await r.json();
+        bitkiler = data.map(b => ({
+            id: b.id,
+            tur: (b.ad || '').toLowerCase()
+                .replace(/ğ/g,'g').replace(/ş/g,'s').replace(/ı/g,'i')
+                .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c').trim(),
+            adHam:      b.ad,
+            ad:         b.isim || b.ad,
+            ekim:       b.ekim_tarihi,
+            hasat_gun:  b.hasat_gun,
+            durum:      (b.hasatlandı || b.hasatlandi || 0) ? 'hasat' : 'aktif',
+            hasat_tarihi: b.hasat_tarihi || null,
+            son_olcum:  b.son_olcum || null,
+            olcum_sayisi: b.olcum_sayisi || 0,
+            hasat_foto: null,
+            hasat_not:  '',
+            buyume_gun: 0
+        }));
+        return true;
+    } catch(e) {
+        console.warn("API bağlantı hatası, demo mod:", e);
+        if (bitkiler.length === 0) {
+            bitkiler = [{
+                id: 1, tur: 'marul', adHam: 'Marul', ad: 'Demo Marul',
+                ekim: new Date(Date.now()-12*86400000).toISOString().split('T')[0],
+                hasat_gun: 45, durum: 'aktif', olcum_sayisi: 0
+            }];
+        }
+        return false;
+    }
+}
+
+async function apiGrafikGetir(bitkiId, limit = 100) {
+    try {
+        const r = await fetch(API + `/bitki/${bitkiId}/grafik?limit=${limit}`);
+        if (!r.ok) return null;
+        return await r.json();
+    } catch(e) { return null; }
+}
+
+async function apiBitkiEkle(ad, isim, ekimTarihi, hasatGun) {
+    const r = await fetch(API + "/bitki/ekle", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ad, isim, ekim_tarihi: ekimTarihi, hasat_gun: hasatGun })
+    });
+    return await r.json();
+}
+
+async function apiHasat(bitkiId) {
+    await fetch(API + `/bitki/${bitkiId}/hasat`, { method: "POST" });
+}
+
+// ══ YARDIMCI ══════════════════════════════════════════════════════════════════
+function gunHesapla(ekimTarihi) {
+    const ekim = new Date(ekimTarihi);
+    const bugun = new Date();
+    return Math.max(0, Math.floor((bugun - ekim) / 86400000));
+}
+
+function durumuHesapla(deger, kosul) {
+    if (deger >= kosul.min && deger <= kosul.max)
+        return { sinif: 'kosul-ok',     ikon: '✅', yorum: 'İdeal aralıkta' };
+    const fark = deger < kosul.min ? kosul.min - deger : deger - kosul.max;
+    const yuzde = (fark / ((kosul.max - kosul.min) / 2 || 1)) * 100;
+    if (yuzde < 20)
+        return { sinif: 'kosul-warn',   ikon: '⚠️', yorum: deger < kosul.min ? 'Biraz düşük' : 'Biraz yüksek' };
+    return     { sinif: 'kosul-danger', ikon: '🔴', yorum: deger < kosul.min ? 'Çok düşük!'  : 'Çok yüksek!'  };
+}
+
+function grafik(id, etiketler, dizi, renk) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    if (chartlar[id]) chartlar[id].destroy();
+    chartlar[id] = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: etiketler,
+            datasets: [{ data: dizi, borderColor: renk, borderWidth: 1.5,
+                         pointRadius: 0, tension: 0.3, fill: false }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 6, font: { size: 10 } }, grid: { display: false } },
+                y: { ticks: { font: { size: 10 } } }
+            }
+        }
+    });
+}
+
+// ══ BİTKİ LİSTESİ ════════════════════════════════════════════════════════════
+function bitkileriGoster() {
+    const liste = document.getElementById('bitki-listesi');
+    const aktif = bitkiler.filter(b => b.durum === 'aktif');
+    const arsiv = bitkiler.filter(b => b.durum === 'hasat');
+    document.getElementById('bitki-sayac').textContent =
+        `${aktif.length} aktif, ${arsiv.length} hasat edildi`;
+
+    if (aktif.length === 0) {
+        liste.innerHTML = `<div class="bos-durum"><div class="bos-emoji">🌱</div>
+            Henüz aktif bitkin yok.<br>Sağ üstten yeni bitki ekle!</div>`;
+        return;
+    }
+    liste.innerHTML = '';
+    aktif.forEach(b => {
+        const tur = turBul(b);
+        const gun = gunHesapla(b.ekim);
+        const secili = seciliBitki && seciliBitki.id === b.id ? 'secili' : '';
+        liste.innerHTML += `
+            <div class="bitki-kart ${secili}" onclick="bitkiSec(${b.id})">
+                <div class="emoji">${tur.emoji}</div>
+                <div class="bilgi">
+                    <div class="ad">${b.ad}</div>
+                    <div class="tur">${b.adHam || b.tur}</div>
+                    <div class="gun">${gun}. gün</div>
+                </div>
+                <button onclick="event.stopPropagation(); bitkiSil(${b.id}, '${b.ad}')"
+                    style="position:absolute;top:6px;right:6px;background:#fce4ec;color:#c62828;
+                           border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;">✕</button>
+            </div>`;
+    });
+}
+
+// ══ DETAY PANELİ ══════════════════════════════════════════════════════════════
+async function detayGoster() {
+    const alan = document.getElementById('detay-alani');
+    if (!seciliBitki) { alan.innerHTML = ''; return; }
+
+    const b = seciliBitki;
+    const tur = turBul(b);
+    const gun = gunHesapla(b.ekim);
+    const hasatGun = b.hasat_gun || tur.hasat;
+    const ilerleme = Math.min(100, Math.round((gun / hasatGun) * 100));
+
+    // Grafik verisi — API'den
+    let veriler = [];
+    const grafikData = await apiGrafikGetir(b.id, 100);
+    if (grafikData && grafikData.zaman && grafikData.zaman.length > 0) {
+        veriler = grafikData.zaman.map((z, i) => ({
+            zaman:    z,
+            tds:      grafikData.tds[i],
+            su_sicak: grafikData.su_sicak[i],
+            sicaklik: grafikData.sicaklik[i],
+            nem:      grafikData.nem[i],
+            co2:      grafikData.co2[i],
+            isik:     grafikData.isik[i]
+        }));
+    }
+
+    const son = veriler.length > 0 ? veriler[veriler.length - 1] : null;
+    const etiketler = veriler.map(v => (v.zaman || '').substring(11, 16));
+
+    const kosulHTML = Object.entries(tur.kosullar).map(([key, kosul]) => {
+        const deger = son ? (son[key] ?? '—') : '—';
+        const d = typeof deger === 'number'
+            ? durumuHesapla(deger, kosul)
+            : { sinif: '', ikon: '⏳', yorum: 'ESP32 bekleniyor' };
+        return `<div class="kosul-satir ${d.sinif}">
+            <div class="kosul-label">${kosul.label}</div>
+            <div class="kosul-ideal">${kosul.ideal}</div>
+            <div class="kosul-durum">${d.ikon} Şu an: ${deger} — ${d.yorum}</div>
+        </div>`;
+    }).join('');
+
+    alan.innerHTML = `
+        <div class="bitki-panel">
+            <div class="bitki-panel-ust">
+                <div class="bitki-fotograf">
+                    <div class="bitki-foto-cerceve">
+                        <span class="bitki-foto-emoji">${tur.emoji}</span>
+                        <img src="${tur.foto}" alt="${b.tur}"
+                             onerror="this.style.display='none'" class="bitki-foto-img">
+                    </div>
+                    ${b.durum === 'hasat'
+                        ? '<div class="hasat-edildi-badge">✅ Hasat Edildi</div>'
+                        : ilerleme >= 95
+                            ? `<button class="btn-hasat-buyuk" onclick="hasatEt(${b.id})">🌾 Hasat Et!</button>`
+                            : `<div class="hasat-edildi-badge" style="background:#fff3e0;color:#f57c00;">⏳ %${ilerleme} büyüdü</div>`}
+                </div>
+                <div class="panel-bilgi">
+                    <h2>${b.ad}</h2>
+                    <div class="meta">
+                        Tür: ${b.adHam || b.tur} &nbsp;|&nbsp;
+                        Ekim: ${b.ekim} &nbsp;|&nbsp;
+                        ${gun}. gün &nbsp;|&nbsp;
+                        Hasat: ${hasatGun} gün &nbsp;|&nbsp;
+                        📊 ${b.olcum_sayisi || 0} ölçüm
+                    </div>
+                    <div>${tur.aciklama}</div>
+                    <div class="progress-bar-wrap" style="margin-top:10px;">
+                        <div class="progress-bar" style="width:${ilerleme}%"></div>
+                    </div>
+                    <div class="progress-label">Büyüme: %${ilerleme} (${gun}/${hasatGun} gün)</div>
+                </div>
+            </div>
+            <div class="kosul-grid">${kosulHTML}</div>
+        </div>
+
+        <div class="section-title">
+            Anlık Sensör Verileri
+            ${son
+                ? `<span style="font-size:11px;color:#888;font-weight:normal;">Son: ${son.zaman}</span>`
+                : '<span style="font-size:11px;color:#f57c00;font-weight:normal;">⏳ ESP32\'den veri bekleniyor...</span>'}
+        </div>
+        <div class="sensor-grid">
+            <div class="sensor-card"><div class="label">Ortam Sıcaklığı</div><div class="value">${son ? son.sicaklik ?? '—' : '—'}</div><div class="unit">°C</div></div>
+            <div class="sensor-card"><div class="label">Nem</div><div class="value">${son ? son.nem ?? '—' : '—'}</div><div class="unit">%</div></div>
+            <div class="sensor-card"><div class="label">Su Sıcaklığı</div><div class="value">${son ? son.su_sicak ?? '—' : '—'}</div><div class="unit">°C</div></div>
+            <div class="sensor-card"><div class="label">TDS (Besin)</div><div class="value">${son ? son.tds ?? '—' : '—'}</div><div class="unit">ppm</div></div>
+            <div class="sensor-card"><div class="label">Işık</div><div class="value">${son ? son.isik ?? '—' : '—'}</div><div class="unit">lux</div></div>
+            <div class="sensor-card"><div class="label">CO2</div><div class="value">${son ? son.co2 ?? '—' : '—'}</div><div class="unit">ppm</div></div>
+        </div>
+
+        <div class="section-title">
+            <span>${b.ad} — Geçmiş Veriler</span>
+        </div>
+        <div class="filter-row">
+            <span>Göster:</span>
+            <button class="filter-btn ${aktifSaat===24?'active':''}"  onclick="filtrele(this,24)">Son 24 Saat</button>
+            <button class="filter-btn ${aktifSaat===168?'active':''}" onclick="filtrele(this,168)">Son 7 Gün</button>
+            <button class="filter-btn ${aktifSaat===720?'active':''}" onclick="filtrele(this,720)">Son 30 Gün</button>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card"><h3>TDS — Besin Konsantrasyonu (ppm)</h3><canvas id="tdsChart" height="120"></canvas></div>
+            <div class="chart-card"><h3>Su Sıcaklığı (°C)</h3><canvas id="suChart"  height="120"></canvas></div>
+            <div class="chart-card"><h3>CO2 Seviyesi (ppm)</h3><canvas id="co2Chart" height="120"></canvas></div>
+            <div class="chart-card"><h3>Işık Yoğunluğu (lux)</h3><canvas id="isikChart" height="120"></canvas></div>
+        </div>
+
+        <div class="section-title" style="margin-top:10px;">Son Kayıtlar — ${b.ad}</div>
+        ${veriler.length === 0
+            ? `<div class="bos-durum" style="padding:20px;">
+                   ⏳ Henüz ölçüm yok. ESP32 bağlandığında veriler burada görünecek.</div>`
+            : `<table>
+                <thead><tr>
+                    <th>Zaman</th><th>Sıcaklık (°C)</th><th>Nem (%)</th>
+                    <th>Su Sıcak. (°C)</th><th>TDS (ppm)</th><th>Işık (lux)</th><th>CO2 (ppm)</th>
+                </tr></thead>
+                <tbody>
+                    ${veriler.slice(-10).reverse().map(v => `<tr>
+                        <td>${v.zaman}</td>
+                        <td>${v.sicaklik ?? '—'}</td><td>${v.nem ?? '—'}</td>
+                        <td>${v.su_sicak ?? '—'}</td><td>${v.tds ?? '—'}</td>
+                        <td>${v.isik ?? '—'}</td><td>${v.co2 ?? '—'}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`}
+        <br>
+    `;
+
+    setTimeout(() => {
+        grafik('tdsChart',  etiketler, veriler.map(v => v.tds),      '#2e7d32');
+        grafik('suChart',   etiketler, veriler.map(v => v.su_sicak), '#1565c0');
+        grafik('co2Chart',  etiketler, veriler.map(v => v.co2),      '#6a1b9a');
+        grafik('isikChart', etiketler, veriler.map(v => v.isik),     '#f57c00');
+    }, 50);
+}
+
+function bitkiSec(id) {
+    seciliBitki = bitkiler.find(b => b.id === id);
+    bitkileriGoster();
+    detayGoster();
+}
+
+async function bitkiSil(id, ad) {
+    if (!confirm(`"${ad}" bitkisini ve tüm ölçümlerini silmek istediğine emin misin?`)) return;
+    try { await fetch(API + `/bitki/${id}/sil`, { method: 'DELETE' }); } catch(e) {}
+    bitkiler = bitkiler.filter(b => b.id !== id);
+    if (seciliBitki && seciliBitki.id === id)
+        seciliBitki = bitkiler.find(b => b.durum === 'aktif') || null;
+    bitkileriGoster();
+    detayGoster();
+}
+
+async function yenile() {
+    await apiBitkilerGetir();
+    bitkileriGoster();
+    if (seciliBitki)
+        seciliBitki = bitkiler.find(b => b.id === seciliBitki.id) || bitkiler[0];
+    else
+        seciliBitki = bitkiler.find(b => b.durum === 'aktif') || null;
+    detayGoster();
+}
+
+// ══ HASAT ═════════════════════════════════════════════════════════════════════
+let hasatBekleyenId = null;
+let hasatFotoBase64 = null;
+
+function hasatEt(id) {
+    hasatBekleyenId = id;
+    hasatFotoBase64 = null;
+    document.getElementById('hasat-not').value = '';
+    document.getElementById('foto-onizleme').innerHTML =
+        '<span style="color:#aaa;font-size:13px;">📷 Fotoğraf seç veya buraya tıkla</span>';
+    document.getElementById('hasat-modal').classList.add('acik');
+}
+
+function hasatModalKapat() {
+    document.getElementById('hasat-modal').classList.remove('acik');
+    hasatBekleyenId = null;
+    hasatFotoBase64 = null;
+}
+
+function fotografSec(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        hasatFotoBase64 = e.target.result;
+        document.getElementById('foto-onizleme').innerHTML =
+            `<img src="${hasatFotoBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function hasatOnayla() {
+    const b = bitkiler.find(b => b.id === hasatBekleyenId);
+    if (!b) return;
+    b.buyume_gun = gunHesapla(b.ekim);
+    await apiHasat(b.id);
+    b.durum       = 'hasat';
+    b.hasat_tarihi = new Date().toISOString().split('T')[0];
+    b.hasat_foto   = hasatFotoBase64 || null;
+    b.hasat_not    = document.getElementById('hasat-not').value.trim();
+    hasatModalKapat();
+    seciliBitki = bitkiler.find(x => x.durum === 'aktif') || null;
+    bitkileriGoster();
+    detayGoster();
+    setTimeout(() => {
+        alert(`✅ "${b.ad}" başarıyla hasat edildi! Tebrikler! 🎉`);
+        sayfaDegistir('hasatlarim');
+    }, 100);
+}
+
+// ══ HASATLARIM SAYFASI ════════════════════════════════════════════════════════
+function hasatlarGoster() {
+    const liste = document.getElementById('hasat-listesi');
+    const hasatlar = bitkiler.filter(b => b.durum === 'hasat');
+    if (hasatlar.length === 0) {
+        liste.innerHTML = `<div class="bos-durum"><div class="bos-emoji">🌾</div>
+            Henüz hasat edilmiş bitkin yok.<br>Bitkiler büyüyünce buraya gelecek!</div>`;
+        return;
+    }
+    liste.innerHTML = hasatlar.map(b => {
+        const tur = turBul(b);
+        return `<div class="bitki-panel" style="margin-bottom:20px;">
+            <div class="bitki-panel-ust">
+                <div class="bitki-fotograf">
+                    <div class="bitki-foto-cerceve">
+                        ${b.hasat_foto
+                            ? `<img src="${b.hasat_foto}" class="bitki-foto-img" alt="${b.ad}">`
+                            : `<span class="bitki-foto-emoji">${tur.emoji}</span>`}
+                    </div>
+                    <div class="hasat-edildi-badge">✅ Hasat Edildi</div>
+                </div>
+                <div class="panel-bilgi">
+                    <h2>${b.ad}</h2>
+                    <div class="meta">
+                        📅 Ekim: ${b.ekim} &nbsp;|&nbsp;
+                        🌾 Hasat: ${b.hasat_tarihi} &nbsp;|&nbsp;
+                        ⏱️ ${b.buyume_gun} günde büyüdü
+                    </div>
+                    <div style="margin-top:4px;">${tur.aciklama}</div>
+                    ${b.hasat_not
+                        ? `<div style="margin-top:10px;background:#f1f8f1;padding:8px 12px;
+                                       border-radius:6px;font-size:13px;color:#555;">
+                               💬 "${b.hasat_not}"</div>`
+                        : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ══ MODAL & FORM ══════════════════════════════════════════════════════════════
+function sayfaDegistir(sayfa) {
+    document.getElementById('sayfa-anasayfa').style.display   = sayfa === 'anasayfa'   ? 'block' : 'none';
+    document.getElementById('sayfa-hasatlarim').style.display = sayfa === 'hasatlarim' ? 'block' : 'none';
+    if (sayfa === 'hasatlarim') hasatlarGoster();
+}
+
+function modalAc() {
+    document.getElementById('yeni-tarih').value = new Date().toISOString().split('T')[0];
+    document.getElementById('yeni-ad').value    = '';
+    document.getElementById('modal').classList.add('acik');
+}
+function modalKapat() { document.getElementById('modal').classList.remove('acik'); }
+
+function turSecildi() {
+    const tur   = document.getElementById('yeni-tur').value;
+    const sayi  = bitkiler.filter(b => b.tur === tur).length + 1;
+    document.getElementById('yeni-ad').placeholder =
+        `örn: ${tur.charAt(0).toUpperCase() + tur.slice(1)}-${sayi}`;
+}
+
+async function bitkiEkle() {
+    const turSec  = document.getElementById('yeni-tur').value;
+    const adInput = document.getElementById('yeni-ad').value.trim();
+    const tarih   = document.getElementById('yeni-tarih').value;
+    const turAdMap = { marul: 'Marul', feslegen: 'Feslegen', domates: 'Domates', cilek: 'Cilek' };
+    const turAd   = turAdMap[turSec] || turSec;
+    const sayi    = bitkiler.filter(b => b.adHam && b.adHam.toLowerCase() === turAd.toLowerCase()).length + 1;
+    const isim    = adInput || `${turAd}-${sayi}`;
+    const hasatGun = bitkiTurleri[turSec]?.hasat || 30;
+    modalKapat();
+    try {
+        const sonuc = await apiBitkiEkle(turAd, isim, tarih, hasatGun);
+        await apiBitkilerGetir();
+        seciliBitki = bitkiler.find(b => b.id === sonuc.id) || bitkiler[0];
+    } catch(e) {
+        const yeni = {
+            id: Date.now(), tur: turSec, adHam: turAd, ad: isim,
+            ekim: tarih, hasat_gun: hasatGun, durum: 'aktif', olcum_sayisi: 0
+        };
+        bitkiler.push(yeni);
+        seciliBitki = yeni;
+    }
+    bitkileriGoster();
+    detayGoster();
+}
+
+function filtrele(btn, saat) {
+    aktifSaat = saat;
+    detayGoster();
+}
+
+// ══ BAŞLANGIÇ ═════════════════════════════════════════════════════════════════
+async function uygulamaBaslat() {
+    await apiBitkilerGetir();
+    seciliBitki = bitkiler.find(b => b.durum === 'aktif') || null;
+    bitkileriGoster();
+    if (seciliBitki) detayGoster();
+    setInterval(yenile, 30000);
+}
+
+// Oturum zaten açıksa direkt başlat
+if (sessionStorage.getItem(OTURUM_KEY) === "1") {
+    uygulamaBaslat();
+}
+</script>
+</body>
+</html>
